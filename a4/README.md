@@ -104,7 +104,7 @@ Things I found while reading the code, which matter when interpreting the data p
 ### Command line (any Linux + CUDA machine)
 
 ```bash
-pip install -e . "vllm==0.11.0" scipy
+pip install -e . "vllm==0.11.0" "transformers>=4.56,<5" scipy
 for model in Qwen/Qwen2.5-Coder-7B-Instruct ByteDance-Seed/Seed-Coder-8B-Instruct; do
   name=$(basename $model | tr 'A-Z.-' 'a-z__')
   for loop in code_generation_summarization code_generation_pseudocode code_generation_pseudocode_noassert; do
