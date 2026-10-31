@@ -81,6 +81,7 @@ This is intentional, not an artifact: keeping one assert anchors the function na
 |---|---|---|
 | Code generation | `code_generation` | ✅ Supported |
 | Code summarization | `code_summarization` | ✅ Supported |
+| Code ↔ pseudocode loop (`--loop_type code_generation_pseudocode`, or `..._noassert` to drop the assert line) | `code_to_pseudocode` | ✅ Supported (fork addition, see [`a4/README.md`](a4/README.md)) |
 | Code translation | `code_translation` | 🧪 Experimental — the task class exists, but config/evaluator support is not yet in the public release (`run_code_translation()` raises `NotImplementedError`) |
 
 Want to add your own loop? A new task type is one new file plus a registry entry — no changes to the loop runner. See the [Contributing Guide](CONTRIBUTING.md).
