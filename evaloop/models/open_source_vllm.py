@@ -153,7 +153,14 @@ class VllmLLM(BaseLLM):
         print(f"vLLM model kwargs: {model_kwargs}")
         
         try:
-            self.model = LLM(**model_kwargs)
+            try:
+                self.model = LLM(**model_kwargs)
+            except (TypeError, ValueError) as e:
+                # Newer vLLM releases dropped some engine arguments (e.g. swap_space)
+                if "swap_space" not in str(e):
+                    raise
+                model_kwargs.pop("swap_space")
+                self.model = LLM(**model_kwargs)
             print("vLLM model loaded successfully")
             
             # Determine optimal batch size if auto-batching is enabled
@@ -230,7 +237,8 @@ class VllmLLM(BaseLLM):
         # Handle different sampling strategies
         use_temperature = getattr(self, 'use_temperature', False) or strategy.temperature != 1.0
         
-        if strategy.num_return_sequences == 1 and not use_temperature:
+        # temperature 0 is greedy decoding; don't send sampling-only options with it
+        if strategy.num_return_sequences == 1 and (not use_temperature or strategy.temperature == 0.0):
             # Greedy decoding
             params.update({
                 "temperature": 0.0,
