@@ -1,22 +1,38 @@
 """Configuration management for EvaLoop framework."""
 
 import os
+import random
 from dataclasses import dataclass, field
 from typing import List, Optional, Dict, Any
 from pathlib import Path
 
 
+# Loop types accepted by EvaluationConfig.loop_type / get_task_configs()
+LOOP_TYPES = (
+    "code_generation_summarization",
+    "code_generation_pseudocode",
+    "code_generation_pseudocode_noassert",
+)
+
+
 @dataclass
 class EvaluationConfig:
     """Configuration for evaluation experiments."""
-    
+
     # Model configuration
     model: str = ""
-    
+
+    # Loop configuration (pair of inverse tasks run each cycle)
+    loop_type: str = "code_generation_summarization"
+
     # Dataset configuration
     dataset: str = "mbpp_plus"
     languages: List[str] = field(default_factory=lambda: ["python"])
-    
+    # Optional task subset: explicit ids, or a seeded random sample of n_tasks
+    task_ids: Optional[List[str]] = None
+    n_tasks: Optional[int] = None
+    task_seed: int = 0
+
     # Evaluation parameters
     max_cycles: int = 10
     temperature: float = 0.0
@@ -47,6 +63,11 @@ class EvaluationConfig:
     # Chat model configuration
     is_chat_model: bool = True
     system_prompt: str = "You are a helpful programming assistant."
+    # Format vLLM prompts with the tokenizer's chat template instead of the plain
+    # "System:/User:/Assistant:" layout
+    use_chat_template: bool = False
+    # vLLM weight dtype ("auto", "half", "bfloat16"); "half" is needed on pre-Ampere GPUs (T4)
+    dtype: str = "auto"
     
     # API configuration
     openai_api_key: Optional[str] = None
@@ -73,7 +94,13 @@ class EvaluationConfig:
         
         if self.max_model_len <= 0:
             raise ValueError("max_model_len must be positive")
-        
+
+        if self.loop_type not in LOOP_TYPES:
+            raise ValueError(f"loop_type must be one of {LOOP_TYPES}, got '{self.loop_type}'")
+
+        if self.n_tasks is not None and self.n_tasks <= 0:
+            raise ValueError("n_tasks must be positive")
+
         # Create output directory
         Path(self.output_dir).mkdir(parents=True, exist_ok=True)
         
@@ -107,7 +134,11 @@ class EvaluationConfig:
         """Convert configuration to dictionary."""
         return {
             "model": self.model,
+            "loop_type": self.loop_type,
             "dataset": self.dataset,
+            "task_ids": self.task_ids,
+            "n_tasks": self.n_tasks,
+            "task_seed": self.task_seed,
             "languages": self.languages,
             "max_cycles": self.max_cycles,
             "temperature": self.temperature,
@@ -122,6 +153,23 @@ class EvaluationConfig:
             "trust_remote_code": self.trust_remote_code,
         }
     
+    def select_tasks(self, prompts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Restrict prompts to ``task_ids``, or to a seeded random sample of ``n_tasks``.
+
+        The dataset order is kept so subset results line up with full runs.
+        """
+        if self.task_ids:
+            wanted = set(self.task_ids)
+            missing = wanted - {p["task_id"] for p in prompts}
+            if missing:
+                raise ValueError(f"Unknown task ids: {sorted(missing)}")
+            return [p for p in prompts if p["task_id"] in wanted]
+        if self.n_tasks is not None and self.n_tasks < len(prompts):
+            chosen = set(random.Random(self.task_seed).sample(
+                [p["task_id"] for p in prompts], self.n_tasks))
+            return [p for p in prompts if p["task_id"] in chosen]
+        return prompts
+
     def get_model_config(self) -> Dict[str, Any]:
         """Generate model configuration for the single model."""
         return self._create_model_config(self.model)
@@ -176,6 +224,8 @@ class EvaluationConfig:
                 "use_beam_search": self.use_beam_search,
                 "is_chat_model": self.is_chat_model,
                 "system_prompt": self.system_prompt,
+                "use_chat_template": self.use_chat_template,
+                "dtype": self.dtype,
                 # Batch configuration
                 "batch_config": {
                     "max_batch_size": self.max_batch_size,
@@ -402,22 +452,34 @@ class EvaluationConfig:
         # This method is now replaced by _is_vllm_supported but kept for backward compatibility
         return self._is_vllm_supported(model)
     
-    def get_task_configs(self, task_type: str = "code_generation_summarization") -> List[Dict[str, Any]]:
-        """Generate task configurations based on task type."""
+    def get_task_configs(self, task_type: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Generate task configurations based on task type (defaults to ``self.loop_type``)."""
+        if task_type is None:
+            task_type = self.loop_type
+        generation_config = {
+            "type": "code_generation",
+            "language": "python",
+            "prompt_template": "Generate Python code for the following task: \n{description}\nReturn only the code, without explanations or comments.",
+        }
         if task_type == "code_generation_summarization":
             return [
+                generation_config,
                 {
-                    "type": "code_generation",
-                    "language": "python",
-                    "prompt_template": "Generate Python code for the following task: \n{description}\nReturn only the code, without explanations or comments.",
-                },
-                {
-                    "type": "code_summarization", 
+                    "type": "code_summarization",
                     "prompt_template": "Use one sentence to summarize the following code and start with 'write a python function to':\n\n```\n{code}\n```\n\n```\nwrite a python function to\n```",
+                },
+            ]
+        elif task_type in ("code_generation_pseudocode", "code_generation_pseudocode_noassert"):
+            # Same generation step as the standard loop; only the inverse task changes.
+            return [
+                generation_config,
+                {
+                    "type": "code_to_pseudocode",
+                    "retain_assert": task_type == "code_generation_pseudocode",
                 },
             ]
         elif task_type == "code_translation":
             # Code translation is not currently supported but kept as interface
             raise NotImplementedError("Code translation is not currently supported")
         else:
-            raise ValueError(f"Unsupported task type: {task_type}. Currently only 'code_generation_summarization' is supported.")
+            raise ValueError(f"Unsupported task type: {task_type}. Supported: {', '.join(LOOP_TYPES)}.")
