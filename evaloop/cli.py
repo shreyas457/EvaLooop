@@ -92,6 +92,12 @@ class EvaLoopCLI:
         preferred_batch_size: int = 64,
         is_chat_model: bool = True,
         system_prompt: str = "You are a helpful programming assistant.",
+        loop_type: str = "code_generation_summarization",
+        use_chat_template: bool = False,
+        n_tasks: Optional[int] = None,
+        task_seed: int = 0,
+        task_ids: Optional[str] = None,
+        dtype: str = "auto",
     ) -> Dict[str, Any]:
         """
         Run code generation and summarization evaluation experiment.
@@ -128,6 +134,14 @@ class EvaLoopCLI:
             preferred_batch_size: Preferred batch size when auto-batching.
             is_chat_model: Whether the model is a chat/instruction-tuned model.
             system_prompt: System prompt for chat models.
+            loop_type: Pair of inverse tasks run each cycle: "code_generation_summarization"
+                (standard loop), "code_generation_pseudocode" (code <-> pseudocode, assert line
+                retained) or "code_generation_pseudocode_noassert" (assert line dropped).
+            use_chat_template: Format vLLM prompts with the tokenizer's chat template.
+            n_tasks: Evaluate a seeded random sample of this many tasks (default: all).
+            task_seed: Seed of the n_tasks sample.
+            task_ids: Comma-separated task ids to evaluate (overrides n_tasks).
+            dtype: vLLM weight dtype ("auto", "half", "bfloat16"); use "half" on T4 GPUs.
 
         Returns:
             Dictionary containing evaluation results with successful cycles for each task.
@@ -141,6 +155,10 @@ class EvaLoopCLI:
                              --gpu_ids "0,1,2,3" --tensor_parallel_size 4 \\
                              --max_batch_size 128 --preferred_batch_size 64
                              
+            # Code <-> pseudocode loop on an open model
+            evaloop evaluate --model "Qwen/Qwen2.5-Coder-7B-Instruct" \\
+                             --loop_type code_generation_pseudocode --use_chat_template
+
             # Custom experiment with specific generation settings
             evaloop evaluate --model "deepseek-coder-33b" \\
                              --max_cycles 15 --temperature 0.2 \\
@@ -203,6 +221,12 @@ class EvaLoopCLI:
             is_chat_model=is_chat_model,
             system_prompt=system_prompt,
             openai_api_key=openai_api_key,
+            loop_type=loop_type,
+            use_chat_template=use_chat_template,
+            n_tasks=n_tasks,
+            task_seed=task_seed,
+            task_ids=_split_list_arg(task_ids) if task_ids else None,
+            dtype=dtype,
         )
         # Log model type detection results
         model_config = config.get_model_config()
@@ -219,7 +243,7 @@ class EvaLoopCLI:
 
         # Create and run evaluator
         evaluator = EvaLoopEvaluator(config)
-        results = evaluator.run_code_generation_summarization()
+        results = evaluator.run_loop()
 
         self.logger.info("Evaluation completed successfully")
         return results
