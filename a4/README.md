@@ -104,7 +104,7 @@ Things I found while reading the code, which matter when interpreting the data p
 ### Command line (any Linux + CUDA machine)
 
 ```bash
-pip install -e . "vllm==0.9.2" scipy
+pip install -e . "vllm==0.11.0" scipy
 for model in Qwen/Qwen2.5-Coder-7B-Instruct ByteDance-Seed/Seed-Coder-8B-Instruct; do
   name=$(basename $model | tr 'A-Z.-' 'a-z__')
   for loop in code_generation_summarization code_generation_pseudocode code_generation_pseudocode_noassert; do
@@ -123,7 +123,7 @@ Unit tests, which need no GPU, network, or API key: `pip install -e ".[dev]" && 
 ## Setup, dependencies, and where each number comes from
 
 * Models under evaluation: `Qwen/Qwen2.5-Coder-7B-Instruct` and `ByteDance-Seed/Seed-Coder-8B-Instruct`
-  (HuggingFace weights, served locally with vLLM 0.9.2, bf16, `max_model_len` 4096). No API models
+  (HuggingFace weights, served locally with vLLM 0.11.0, bf16, `max_model_len` 4096). No API models
   and no LLM judge are used. Cost is Colab GPU time only (fill in: GPU type, hours).
 * Decoding: greedy (temperature 0), max 1024 new tokens, max 10 cycles, one run per configuration,
   system prompt `You are a helpful programming assistant.`, each model's chat template.
