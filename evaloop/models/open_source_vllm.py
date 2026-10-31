@@ -63,6 +63,8 @@ class VllmLLM(BaseLLM):
         self.system_prompt = model_config.get('system_prompt', "You are a helpful assistant.")
         self.seed = model_config.get('seed', None)
         self.use_temperature = model_config.get('use_temperature', False)
+        self.use_chat_template = model_config.get('use_chat_template', False)
+        self.dtype = model_config.get('dtype', 'auto')
         
         # Device configuration
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -121,6 +123,7 @@ class VllmLLM(BaseLLM):
             "trust_remote_code": self.trust_remote_code,
             "swap_space": self.swap_space,
             "gpu_memory_utilization": self.gpu_memory_utilization,
+            "dtype": self.dtype,
         }
         
         # Set tensor parallel size for multi-GPU setups
@@ -262,9 +265,34 @@ class VllmLLM(BaseLLM):
             Formatted prompt string.
         """
         if self.is_chat_model:
+            if self.use_chat_template:
+                return self._apply_chat_template(prompt)
             # Simple chat format - can be extended for specific model formats
             return f"System: {self.system_prompt}\n\nUser: {prompt}\n\nAssistant:"
         return prompt
+
+    def _apply_chat_template(self, prompt: str) -> str:
+        """Format the prompt with the model's own chat template.
+
+        Falls back to folding the system prompt into the user turn for templates
+        that reject a system role (e.g. Gemma).
+        """
+        tokenizer = self.model.get_tokenizer()
+        messages = [{"role": "user", "content": prompt}]
+        if self.system_prompt:
+            messages.insert(0, {"role": "system", "content": self.system_prompt})
+        try:
+            text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        except Exception:
+            merged = f"{self.system_prompt}\n\n{prompt}" if self.system_prompt else prompt
+            text = tokenizer.apply_chat_template(
+                [{"role": "user", "content": merged}], tokenize=False, add_generation_prompt=True
+            )
+        # vLLM tokenizes the string again and adds BOS itself; avoid a doubled BOS token
+        bos = getattr(tokenizer, "bos_token", None)
+        if bos and text.startswith(bos):
+            text = text[len(bos):]
+        return text
     
     def generate(self, prompt: str, **kwargs) -> Union[str, List[str]]:
         """Generate completion(s) for a given prompt.
