@@ -125,7 +125,7 @@ Unit tests, which need no GPU, network, or API key: `pip install -e ".[dev]" && 
 * Models under evaluation: `Qwen/Qwen2.5-Coder-7B-Instruct` and `ByteDance-Seed/Seed-Coder-8B-Instruct`
   (HuggingFace weights, served locally with vLLM 0.11.0, bf16, `max_model_len` 4096). No API models
   and no LLM judge are used. Hardware: one Colab A100-40GB. Cost is Colab GPU time only
-  ([TODO: hours] A100-hours for all six runs).
+  (about 1.5 A100-hours, ~90 min, for all six runs).
 * Manual failure labels (`analysis/manual_labels.csv`): drafted by Claude (Anthropic, via Claude Code)
   from `analysis/manual_inspection.md`, then reviewed and corrected by me ([TODO: N] of 64 changed).
   `test_scaffold_propagation` was added to the label set. It marks failures where the pseudocode
