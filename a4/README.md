@@ -124,7 +124,13 @@ Unit tests, which need no GPU, network, or API key: `pip install -e ".[dev]" && 
 
 * Models under evaluation: `Qwen/Qwen2.5-Coder-7B-Instruct` and `ByteDance-Seed/Seed-Coder-8B-Instruct`
   (HuggingFace weights, served locally with vLLM 0.11.0, bf16, `max_model_len` 4096). No API models
-  and no LLM judge are used. Cost is Colab GPU time only (fill in: GPU type, hours).
+  and no LLM judge are used. Hardware: one Colab A100-40GB. Cost is Colab GPU time only
+  ([TODO: hours] A100-hours for all six runs).
+* Manual failure labels (`analysis/manual_labels.csv`): drafted by Claude (Anthropic, via Claude Code)
+  from `analysis/manual_inspection.md`, then reviewed and corrected by me ([TODO: N] of 64 changed).
+  `test_scaffold_propagation` was added to the label set. It marks failures where the pseudocode
+  describes the model's own pasted test code (`assert` lines), which the next cycle re-implements
+  as invalid Python such as `def assert(...)`.
 * Decoding: greedy (temperature 0), max 1024 new tokens, max 10 cycles, one run per configuration,
   system prompt `You are a helpful programming assistant.`, each model's chat template.
 * Tasks: all 378 MBPP+ tasks (EvalPlus `get_mbpp_plus()`, MBPP+ v0.2.0). No subsetting.
