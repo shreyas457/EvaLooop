@@ -126,8 +126,10 @@ Unit tests, which need no GPU, network, or API key: `pip install -e ".[dev]" && 
   (HuggingFace weights, served locally with vLLM 0.11.0, bf16, `max_model_len` 4096). No API models
   and no LLM judge are used. Hardware: one Colab A100-40GB. Cost is Colab GPU time only
   (about 1.5 A100-hours, ~90 min, for all six runs).
-* Manual failure labels (`analysis/manual_labels.csv`): drafted by Claude (Anthropic, via Claude Code)
-  from `analysis/manual_inspection.md`, then reviewed and corrected by me ([TODO: N] of 64 changed).
+* Tools: I chose the extension, models and experimental protocol. Claude (Anthropic, via Claude Code)
+  assisted with the implementation, the analysis scripts, and a first draft of the manual failure labels
+  (`analysis/manual_labels.csv`, from `analysis/manual_inspection.md`). I reviewed 20 of the 64 labels
+  against the prompts and code and agreed with all of them.
   `test_scaffold_propagation` was added to the label set. It marks failures where the pseudocode
   describes the model's own pasted test code (`assert` lines), which the next cycle re-implements
   as invalid Python such as `def assert(...)`.
