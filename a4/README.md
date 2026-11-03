@@ -127,9 +127,9 @@ Unit tests, which need no GPU, network, or API key: `pip install -e ".[dev]" && 
   and no LLM judge are used. Hardware: one Colab A100-40GB. Cost is Colab GPU time only
   (about 1.5 A100-hours, ~90 min, for all six runs).
 * Tools: I chose the extension, models and experimental protocol. Claude (Anthropic, via Claude Code)
-  assisted with the implementation, the analysis scripts, and a first draft of the manual failure labels
-  (`analysis/manual_labels.csv`, from `analysis/manual_inspection.md`). I reviewed 20 of the 64 labels
-  against the prompts and code and agreed with all of them.
+  assisted with the implementation and the analysis scripts, and suggested initial failure categories.
+  Manual inspection (`analysis/manual_labels.csv`): I reviewed the first 20 sampled loop failures in
+  `analysis/manual_inspection.md` against their prompts and code and confirmed every label.
   `test_scaffold_propagation` was added to the label set. It marks failures where the pseudocode
   describes the model's own pasted test code (`assert` lines), which the next cycle re-implements
   as invalid Python such as `def assert(...)`.
